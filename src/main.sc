@@ -1,3 +1,0 @@
-import bottle
-
-bottle.run;
