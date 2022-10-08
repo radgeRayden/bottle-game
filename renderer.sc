@@ -46,12 +46,12 @@ type StreamingMesh < Struct
             vertex-data : (Array vertexT)
             index-data : (Array indexT)
 
-            texture : GPUTexture
             bgroup0 : GPUBindGroup
+            texture-view : GPUResourceBinding
 
             dirty? : bool
 
-            fn make-bindgroup (vbuffer texture)
+            fn make-bindgroup (vbuffer texture-view)
                 let istate = bottle.src.gpu.common.istate
                 let dummies = bottle.src.gpu.common.istate.dummy-resources
                 let cache = bottle.src.gpu.common.istate.cached-layouts
@@ -79,7 +79,7 @@ type StreamingMesh < Struct
                                     magFilter = wgpu.FilterMode.Nearest
                                     minFilter = wgpu.FilterMode.Nearest
                                     mipmapFilter = wgpu.MipmapFilterMode.Linear
-                        GPUResourceBinding.TextureView texture._view
+                        texture-view
 
             fn draw (self rp)
                 if self.dirty?
@@ -110,8 +110,7 @@ type StreamingMesh < Struct
 
                 'write self.vertex-buffer self.vertex-data
                 'write self.index-buffer self.index-data
-
-                self.bgroup0 = (make-bindgroup self.vertex-buffer self.texture)
+                self.bgroup0 = (make-bindgroup self.vertex-buffer self.texture-view)
 
                 self.dirty? = false
 
@@ -122,13 +121,21 @@ type StreamingMesh < Struct
 
             inline __typecall (cls max-vertices max-indices texture)
                 let vbuffer ibuffer = (storage-bufferT max-vertices) (index-bufferT max-indices)
-                let bgroup0 = (make-bindgroup vbuffer texture)
+
+                let dummies = bottle.src.gpu.common.istate.dummy-resources
+                let texture-view =
+                    static-if (not (none? texture))
+                        GPUResourceBinding.TextureView texture._view
+                    else
+                        copy dummies.texture-view
+
+                let bgroup0 = (make-bindgroup vbuffer (view texture-view))
 
                 Struct.__typecall cls
                     vertex-buffer = vbuffer
                     index-buffer = ibuffer
                     bgroup0 = bgroup0
-                    texture = texture
+                    texture-view = texture-view
 
             unlet make-bindgroup
 
@@ -137,9 +144,8 @@ let MeshT = (StreamingMesh Vertex u16)
 struct SpriteBatch
     mesh : MeshT
 
-    inline __typecall (cls texture-filename)
+    inline __typecall (cls texture)
         let max-sprites = 1024
-        let texture = (load-image texture-filename)
 
         super-type.__typecall cls
             mesh = (MeshT (4 * max-sprites) (6 * max-sprites) texture)
@@ -171,6 +177,63 @@ struct SpriteBatch
             Vertex
                 position = (position + ((norm-vertices @ i) * size))
                 texcoords = (quad.start + ((texcoords @ i) * quad.extent))
+                color = (vec4 1)
+
+        let idx-offset = ((countof self.mesh.vertex-data) as u16)
+        'append self.mesh.vertex-data
+            make-vertex 0
+        'append self.mesh.vertex-data
+            make-vertex 1
+        'append self.mesh.vertex-data
+            make-vertex 2
+        'append self.mesh.vertex-data
+            make-vertex 3
+
+        'append self.mesh.index-data (0:u16 + idx-offset)
+        'append self.mesh.index-data (1:u16 + idx-offset)
+        'append self.mesh.index-data (2:u16 + idx-offset)
+        'append self.mesh.index-data (2:u16 + idx-offset)
+        'append self.mesh.index-data (3:u16 + idx-offset)
+        'append self.mesh.index-data (0:u16 + idx-offset)
+        ;
+
+    fn draw (self rp)
+        'draw self.mesh rp
+
+struct PrimitiveBatch
+    mesh : MeshT
+
+    inline __typecall (cls)
+        super-type.__typecall cls
+            mesh = (MeshT 4096 8192)
+
+    fn clear (self)
+        'clear self.mesh
+
+    fn... add-rectangle (self : this-type, position : vec2, size : vec2)
+        self.mesh.dirty? = true
+
+        local norm-vertices =
+            # 0 - 3
+            # | \ |
+            # 1 - 2
+            arrayof vec2
+                vec2 0 1 # top left
+                vec2 0 0 # bottom left
+                vec2 1 0 # bottom right
+                vec2 1 1 # top right
+
+        local texcoords =
+            arrayof vec2
+                vec2 0 0 # top left
+                vec2 0 1 # bottom left
+                vec2 1 1 # bottom right
+                vec2 1 0 # top right
+
+        inline make-vertex (i)
+            Vertex
+                position = (position + ((norm-vertices @ i) * size))
+                texcoords = (vec2)
                 color = (vec4 1)
 
         let idx-offset = ((countof self.mesh.vertex-data) as u16)
@@ -233,5 +296,5 @@ fn set-camera-position (position)
     'write draw-state.uniform-buffer uniforms
 
 do
-    let SpriteBatch Quad init set-camera-position
+    let SpriteBatch PrimitiveBatch Quad init set-camera-position
     locals;

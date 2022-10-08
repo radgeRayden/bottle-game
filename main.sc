@@ -4,12 +4,16 @@ using import glm
 
 import bottle
 import .renderer
-from renderer let SpriteBatch Quad
+using import .helpers
+from renderer let SpriteBatch PrimitiveBatch Quad
 let cb = (import bottle.src.sysevents.callbacks)
 using import bottle.src.sysevents.keyconstants
+using bottle.gpu.types
 
 struct GameState
     sprites : SpriteBatch
+    geometry : PrimitiveBatch
+    image : GPUTexture
     animation-timer : f64
 
 global gamestate : (Option GameState)
@@ -38,24 +42,27 @@ fn (key)
 fn ()
     renderer.init;
 
-    local spritebatch = (SpriteBatch "assets/pig_walk.png")
+    let image = (load-image "assets/pig_walk.png")
+    local spritebatch = (SpriteBatch image)
     'add-sprite spritebatch (vec2) (vec2 36 30)
         pixels-to-UV (vec4 0 0 36 30) (vec2 576 30)
+
+    local geometry = (PrimitiveBatch)
+    for i in (range 1025)
+        'add-rectangle geometry (vec2 (36 * i) 36) (vec2 36 30)
+
     gamestate =
         GameState
             sprites = spritebatch
+            geometry = geometry
+            image = image
     ;
 
-global do-once = true
 @@ 'on bottle.update
 fn (dt)
-    if do-once
-        do-once = false
-        return;
     update-animation;
     let gamestate = ('force-unwrap gamestate)
     let spritebatch = gamestate.sprites
-
     gamestate.animation-timer += dt
     ;
 
@@ -65,6 +72,7 @@ fn (rp)
 
     renderer.set-camera-position (vec2 0 0)
     'draw gamestate.sprites rp
+    'draw gamestate.geometry rp
     ;
 
 bottle.run;
