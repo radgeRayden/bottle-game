@@ -1,0 +1,13 @@
+package scopes-community
+    summary "Meta package for the Scopes Community eo repository"
+    version "latest"
+
+fn pkg (name)
+    shortcut "{name}" "https://raw.githubusercontent.com/ScopesCommunity/eo-packages/main/recipes/{name}.eo"
+
+pkg "glad"
+pkg "glfw"
+pkg "sdl2"
+pkg "stb"
+pkg "volk"
+pkg "wgpu"
