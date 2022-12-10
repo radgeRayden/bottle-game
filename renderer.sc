@@ -295,6 +295,9 @@ fn set-camera-position (position)
 
     'write draw-state.uniform-buffer uniforms
 
+fn set-background-color (color)
+    bottle.gpu.set-clear-color color
+
 do
-    let SpriteBatch PrimitiveBatch Quad init set-camera-position
+    let SpriteBatch PrimitiveBatch Quad init set-camera-position set-background-color
     locals;
