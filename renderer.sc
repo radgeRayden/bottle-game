@@ -210,7 +210,7 @@ struct PrimitiveBatch
     fn clear (self)
         'clear self.mesh
 
-    fn... add-rectangle (self : this-type, position : vec2, size : vec2)
+    fn... add-rectangle (self : this-type, position : vec2, size : vec2, color = (vec4 1))
         self.mesh.dirty? = true
 
         local norm-vertices =
@@ -234,7 +234,7 @@ struct PrimitiveBatch
             Vertex
                 position = (position + ((norm-vertices @ i) * size))
                 texcoords = (vec2)
-                color = (vec4 1)
+                color = color
 
         let idx-offset = ((countof self.mesh.vertex-data) as u16)
         'append self.mesh.vertex-data
