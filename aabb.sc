@@ -6,8 +6,6 @@ import bottle
 import .renderer
 
 from renderer let SpriteBatch PrimitiveBatch Quad
-let cb = (import bottle.src.sysevents.callbacks)
-let sysevents = (import bottle.src.sysevents)
 
 struct InputState
     Left  : bool
@@ -29,7 +27,8 @@ global input-state : InputState
 global gamestate : (Option GameState)
 
 inline update-input (key value)
-    using import bottle.src.sysevents.keyconstants
+    from bottle.enums let Key
+
     switch key
     case Key.Left
         input-state.Left = value
@@ -54,16 +53,16 @@ fn (cfg)
 
 fn restart
 
-@@ 'on cb.on-key-pressed
+@@ 'on bottle.key-pressed
 fn (key)
     gamestate := ('force-unwrap gamestate)
 
-    using import bottle.src.sysevents.keyconstants
+    from bottle.enums let Key
     inline kbind (binding action ...)
         if (key == (getattr Key binding))
             action ...
 
-    kbind 'Escape sysevents.quit
+    kbind 'Escape bottle.quit!
     kbind 'Space restart
     kbind 'x     (() -> (gamestate.show-debug? = (not gamestate.show-debug?)))
 
@@ -72,9 +71,9 @@ fn (key)
     kbind 'Up    input-down key
     kbind 'Down  input-down key
 
-@@ 'on cb.on-key-released
+@@ 'on bottle.key-released
 fn (key)
-    using import bottle.src.sysevents.keyconstants
+    from bottle.enums let Key
     inline kbind (binding action ...)
         if (key == (getattr Key binding))
             action ...
