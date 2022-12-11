@@ -7,18 +7,22 @@ import .renderer
 
 from renderer let SpriteBatch PrimitiveBatch Quad
 
-struct InputState
+struct InputState plain
     Left  : bool
     Right : bool
     Up    : bool
     Down  : bool
 
+struct AABB plain
+    position : vec2
+    half-size : vec2
+
 struct GameState
-    # x y hw hh
-    aabb1 = (vec4 -200 -200 50 50)
-    aabb2 = (vec4 0 0 50 50)
+    player = (AABB (vec2 -200 -200) (vec2 50 50))
+    aabb2 = (AABB (vec2 0 0) (vec2 50 50))
+    projection : AABB
+
     collision? : bool
-    projection : vec4
     show-debug? : bool
 
     geometry : PrimitiveBatch
@@ -86,36 +90,37 @@ fn (key)
 @@ 'on bottle.load
 fn ()
     renderer.init;
-    local geometry = (PrimitiveBatch)
 
     gamestate =
         GameState
-            geometry = geometry
+            geometry = (PrimitiveBatch)
+
+fn generate-world ()
 
 # intersection tests
 fn AABBvsAABB (a b)
-    and
-        (a.z + b.z) > (abs (a.x - b.x))
-        (a.w + b.w) > (abs (a.y - b.y))
+    intersect? :=
+        a.half-size + b.half-size > (abs (a.position - b.position))
+    intersect? @ 0 and intersect? @ 1
 
 fn resolve-collision (a b)
     # push back along movement vector
-    dist := b.xy - a.xy # distance vector between colliders
-    sdist := a.zw + b.zw # max distance vector (separation) if colliders were touching on both axis
+    dist := b.position - a.position # distance vector between colliders
+    sdist := a.half-size + b.half-size # max distance vector (separation) if colliders were touching on both axis
     penetration :=
         vec2
             ? (dist.x > 0) (sdist.x - dist.x) (-sdist.x - dist.x)
             ? (dist.y > 0) (sdist.y - dist.y) (-sdist.y - dist.y)
 
     if ((abs penetration.x) < (abs penetration.y))
-        vec4 (a.xy - penetration.x0) a.zw
+        AABB (a.position - penetration.x0) a.half-size
     else
-        vec4 (a.xy - penetration.0y) a.zw
+        AABB (a.position - penetration.0y) a.half-size
 
 @@ 'on bottle.update
 fn (dt)
     let gamestate = ('force-unwrap gamestate)
-    let aabb1 aabb2 = gamestate.aabb1 gamestate.aabb2
+    let player aabb2 = gamestate.player gamestate.aabb2
 
     local dir : vec2
     if input-state.Left
@@ -129,26 +134,26 @@ fn (dt)
 
     let speed = 600:f32
     if (dir != (vec2))
-        new-pos := aabb1.xy + ((normalize dir) * speed * (vec2 dt))
-        projection := (vec4 new-pos aabb1.zw)
+        new-pos := player.position + ((normalize dir) * speed * (vec2 dt))
+        projection := (AABB new-pos player.half-size)
         if (AABBvsAABB projection aabb2)
-            aabb1 = (resolve-collision projection aabb2)
+            player = (resolve-collision projection aabb2)
             gamestate.projection = projection
         else
-            aabb1 = projection
+            player = projection
 
 @@ 'on bottle.draw
 fn (rp)
     let gamestate = ('force-unwrap gamestate)
-    let aabb1 aabb2 projection = gamestate.aabb1 gamestate.aabb2 gamestate.projection
+    let player aabb2 projection = gamestate.player gamestate.aabb2 gamestate.projection
     let geometry = gamestate.geometry
 
     'clear geometry
-    'add-rectangle geometry (aabb1.xy - (aabb1.zw / 2)) (aabb1.zw * 2) (vec4 0.7 0.25 0 1)
-    'add-rectangle geometry (aabb2.xy - (aabb2.zw / 2)) (aabb2.zw * 2) (vec4 0 0.7 0.25 1)
+    'add-rectangle geometry (player.position - player.half-size) (player.half-size * 2) (vec4 0.7 0.25 0 1)
+    'add-rectangle geometry (aabb2.position - aabb2.half-size) (aabb2.half-size * 2) (vec4 0 0.7 0.25 1)
 
     if gamestate.show-debug?
-        'add-rectangle geometry (projection.xy - (projection.zw / 2)) (projection.zw * 2) (vec4 1 0.7 0.25 0.5)
+        'add-rectangle geometry (projection.position - projection.half-size) (projection.half-size * 2) (vec4 1 0.7 0.25 0.5)
 
     renderer.set-camera-position (vec2 0 0)
     'draw geometry rp
