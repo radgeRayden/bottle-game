@@ -1,6 +1,7 @@
-using import struct
-using import Option
+using import Array
 using import glm
+using import Option
+using import struct
 
 import bottle
 import .renderer
@@ -18,9 +19,9 @@ struct AABB plain
     half-size : vec2
 
 struct GameState
-    player = (AABB (vec2 -200 -200) (vec2 50 50))
-    aabb2 = (AABB (vec2 0 0) (vec2 50 50))
+    player = (AABB (vec2 -200 250) (vec2 20))
     projection : AABB
+    world : (Array AABB)
 
     collision? : bool
     show-debug? : bool
@@ -87,6 +88,13 @@ fn (key)
     kbind 'Up    input-up key
     kbind 'Down  input-up key
 
+fn generate-world ()
+    local world : (Array AABB)
+    for i in (range 20)
+        'append world
+            AABB (vec2 ((i * 40) - 400) 0) (vec2 20)
+    world
+
 @@ 'on bottle.load
 fn ()
     renderer.init;
@@ -94,8 +102,7 @@ fn ()
     gamestate =
         GameState
             geometry = (PrimitiveBatch)
-
-fn generate-world ()
+            world = (generate-world)
 
 # intersection tests
 fn AABBvsAABB (a b)
@@ -120,7 +127,7 @@ fn resolve-collision (a b)
 @@ 'on bottle.update
 fn (dt)
     let gamestate = ('force-unwrap gamestate)
-    let player aabb2 = gamestate.player gamestate.aabb2
+    let player world = gamestate.player gamestate.world
 
     local dir : vec2
     if input-state.Left
@@ -132,25 +139,34 @@ fn (dt)
     if input-state.Down
         dir.y = -1
 
-    let speed = 600:f32
+    speed   := 200:f32
+    gravity := -100:f32
+    local new-pos = player.position + (vec2 0 (gravity * dt))
     if (dir != (vec2))
-        new-pos := player.position + ((normalize dir) * speed * (vec2 dt))
-        projection := (AABB new-pos player.half-size)
-        if (AABBvsAABB projection aabb2)
-            player = (resolve-collision projection aabb2)
-            gamestate.projection = projection
-        else
-            player = projection
+        new-pos += (normalize dir) * speed * (vec2 dt)
+
+    gamestate.projection := (AABB new-pos player.half-size)
+    player =
+        fold (projection = gamestate.projection) for ent in world
+            if (AABBvsAABB projection ent)
+                (resolve-collision projection ent)
+            else
+                projection
+
+fn linear-to-srgb (c)
+    c ** 2.2
 
 @@ 'on bottle.draw
 fn (rp)
     let gamestate = ('force-unwrap gamestate)
-    let player aabb2 projection = gamestate.player gamestate.aabb2 gamestate.projection
+    let player world projection = gamestate.player gamestate.world gamestate.projection
     let geometry = gamestate.geometry
 
     'clear geometry
     'add-rectangle geometry (player.position - player.half-size) (player.half-size * 2) (vec4 0.7 0.25 0 1)
-    'add-rectangle geometry (aabb2.position - aabb2.half-size) (aabb2.half-size * 2) (vec4 0 0.7 0.25 1)
+    for i ent in (enumerate world)
+        l := i / (countof world)
+        'add-rectangle geometry (ent.position - ent.half-size) (ent.half-size * 2) (vec4 (linear-to-srgb (vec3 l)) 1)
 
     if gamestate.show-debug?
         'add-rectangle geometry (projection.position - projection.half-size) (projection.half-size * 2) (vec4 1 0.7 0.25 0.5)
