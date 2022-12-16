@@ -110,8 +110,7 @@ fn AABBvsAABB (a b)
         a.half-size + b.half-size > (abs (a.position - b.position))
     intersect? @ 0 and intersect? @ 1
 
-fn resolve-collision (a b)
-    # push back along movement vector
+fn calculate-msv (a b)
     dist := b.position - a.position # distance vector between colliders
     sdist := a.half-size + b.half-size # max distance vector (separation) if colliders were touching on both axis
     penetration :=
@@ -120,9 +119,34 @@ fn resolve-collision (a b)
             ? (dist.y > 0) (sdist.y - dist.y) (-sdist.y - dist.y)
 
     if ((abs penetration.x) < (abs penetration.y))
-        AABB (a.position - penetration.x0) a.half-size
+        -penetration.x0
     else
-        AABB (a.position - penetration.0y) a.half-size
+        -penetration.0y
+
+inline smax (a b)
+    if ((abs a) > (abs b))
+        a
+    else
+        b
+
+fn try-move (col)
+    world := ('force-unwrap gamestate) . world
+
+    vvv bind response
+    fold (response = (vec2)) for ent in world
+        if (AABBvsAABB col ent)
+            msv := (calculate-msv col ent)
+            vec2 (smax response.x msv.x) (smax response.y msv.y)
+        else
+            response
+
+    let response =
+        if ((abs response.x) > (abs response.y))
+            response.x0
+        else
+            response.0y
+
+    AABB (col.position + response) col.half-size
 
 @@ 'on bottle.update
 fn (dt)
@@ -140,18 +164,13 @@ fn (dt)
         dir.y = -1
 
     speed   := 200:f32
-    gravity := -100:f32
+    gravity := -200:f32
     local new-pos = player.position + (vec2 0 (gravity * dt))
     if (dir != (vec2))
         new-pos += (normalize dir) * speed * (vec2 dt)
 
     gamestate.projection := (AABB new-pos player.half-size)
-    player =
-        fold (projection = gamestate.projection) for ent in world
-            if (AABBvsAABB projection ent)
-                (resolve-collision projection ent)
-            else
-                projection
+    player = (try-move gamestate.projection)
 
 fn linear-to-srgb (c)
     c ** 2.2
@@ -175,6 +194,6 @@ fn (rp)
     'draw geometry rp
 
 fn restart ()
-    print "restart"
+    ('force-unwrap gamestate) . player = (AABB (vec2 -200 250) (vec2 20))
 
 bottle.run;
