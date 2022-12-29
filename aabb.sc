@@ -148,8 +148,19 @@ fn try-move (col)
 
     AABB (col.position + response) col.half-size
 
+global frame-acc : f32
+acc-threshold := 1 / 60
+
 @@ 'on bottle.update
 fn (dt)
+    dt := (min (dt as f32) (1 / 15))
+    frame-acc += dt
+    if (frame-acc < acc-threshold)
+        return;
+    else
+        frame-acc -= acc-threshold
+    dt := acc-threshold
+
     let gamestate = ('force-unwrap gamestate)
     let player world = gamestate.player gamestate.world
 
@@ -164,7 +175,7 @@ fn (dt)
         dir.y = -1
 
     speed   := 200:f32
-    gravity := -200:f32
+    gravity := -600:f32
     local new-pos = player.position + (vec2 0 (gravity * dt))
     if (dir != (vec2))
         new-pos += (normalize dir) * speed * (vec2 dt)
