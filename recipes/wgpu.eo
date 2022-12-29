@@ -11,6 +11,7 @@ git-release-dir :=
 
         cmd "git clone https://github.com/gfx-rs/wgpu-native/ --recurse-submodules ."
         cmd "git checkout {VERSION}"
+        cmd """"sed 's/LIB_NAME\=libwgpu/LIB_NAME=libwgpu_native/' Makefile > Makefile2; mv -f Makefile2 Makefile
         cmd "make package -j {cpu-core-count}"
         commonpath (extract "{build-path}/dist/wgpu--release.zip")
 

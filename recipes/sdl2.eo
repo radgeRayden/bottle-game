@@ -1,5 +1,5 @@
 # modified from https://hg.sr.ht/~duangle/majoreo/browse/testing/recipes/sdl2.eo?rev=tip
-VERSION := "master"
+VERSION := "SDL2"
 SUMMARY := "Simple DirectMedia Layer"
 
 archive :=
