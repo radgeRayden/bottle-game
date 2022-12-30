@@ -8,6 +8,8 @@ import .renderer
 
 from renderer let SpriteBatch PrimitiveBatch Quad
 
+USE_DT_ACCUMULATOR := true
+
 struct InputState plain
     Left  : bool
     Right : bool
@@ -148,19 +150,10 @@ fn try-move (col)
 
     AABB (col.position + response) col.half-size
 
-global frame-acc : f32
-acc-threshold := 1 / 60
+global frame-acc : f64
+FIXED_TIMESTEP := 1:f64 / 60
 
-@@ 'on bottle.update
-fn (dt)
-    dt := (min (dt as f32) (1 / 15))
-    frame-acc += dt
-    if (frame-acc < acc-threshold)
-        return;
-    else
-        frame-acc -= acc-threshold
-    dt := acc-threshold
-
+fn simulate (dt)
     let gamestate = ('force-unwrap gamestate)
     let player world = gamestate.player gamestate.world
 
@@ -182,6 +175,16 @@ fn (dt)
 
     gamestate.projection := (AABB new-pos player.half-size)
     player = (try-move gamestate.projection)
+
+@@ 'on bottle.update
+fn (dt)
+    static-if USE_DT_ACCUMULATOR
+        frame-acc += dt
+        while (frame-acc > FIXED_TIMESTEP)
+            simulate FIXED_TIMESTEP
+            frame-acc -= FIXED_TIMESTEP
+    else
+        simulate dt
 
 fn linear-to-srgb (c)
     c ** 2.2
