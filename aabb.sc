@@ -8,8 +8,6 @@ import .renderer
 
 from renderer let SpriteBatch PrimitiveBatch Quad
 
-USE_DT_ACCUMULATOR := true
-
 struct InputState plain
     Left  : bool
     Right : bool
@@ -57,6 +55,7 @@ fn input-up (key)
 @@ 'on bottle.configure
 fn (cfg)
     cfg.window.title = "AABB collision test"
+    cfg.timer.use-delta-accumulator? = true
 
 fn restart
 
@@ -150,10 +149,8 @@ fn try-move (col)
 
     AABB (col.position + response) col.half-size
 
-global frame-acc : f64
-FIXED_TIMESTEP := 1:f64 / 60
-
-fn simulate (dt)
+@@ 'on bottle.update
+fn (dt)
     let gamestate = ('force-unwrap gamestate)
     let player world = gamestate.player gamestate.world
 
@@ -175,16 +172,6 @@ fn simulate (dt)
 
     gamestate.projection := (AABB new-pos player.half-size)
     player = (try-move gamestate.projection)
-
-@@ 'on bottle.update
-fn (dt)
-    static-if USE_DT_ACCUMULATOR
-        frame-acc += dt
-        while (frame-acc > FIXED_TIMESTEP)
-            simulate FIXED_TIMESTEP
-            frame-acc -= FIXED_TIMESTEP
-    else
-        simulate dt
 
 fn linear-to-srgb (c)
     c ** 2.2
